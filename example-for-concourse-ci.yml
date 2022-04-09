@@ -1,0 +1,95 @@
+resource_types:
+- name: webdav
+  type: registry-image
+  tags: [internal]
+  source:
+    repository: ghcr.io/fourdollars/webdav-resource
+
+resources:
+# WebDAV
+- name: webdav
+  type: webdav
+  icon: nas
+  tags: [internal]
+  check_every: 1h
+  source:
+    domain: webdav
+    ssl: false
+    port: 80
+    username: webdav
+    password: webdav
+    path: live-build
+
+# Docker
+- name: jammy
+  type: registry-image
+  tags: [internal]
+  source:
+    repository: ghcr.io/fourdollars/live-build-docker
+    tag: jammy
+- name: focal
+  type: registry-image
+  tags: [internal]
+  source:
+    repository: ghcr.io/fourdollars/live-build-docker
+    tag: focal
+
+jobs:
+- name: live-build-jammy
+  serial_groups:
+    - live-build
+  plan:
+  - get: jammy
+    tags: [internal]
+  - task: build
+    privileged: true
+    tags: [internal]
+    image: jammy
+    config:
+      outputs:
+      - name: output
+      params:
+        DEBIAN_FRONTEND: noninteractive
+        TERM: xterm
+      platform: linux
+      run:
+        path: bash
+        args:
+        - -exc
+        - |
+          cd /usr/share/livecd-rootfs/live-build
+          PROJECT=ubuntu SUITE=jammy ARCH=amd64 lb build
+          # WIP
+  - put: webdav
+    tags: [internal]
+    params:
+      from: output
+- name: live-build-focal
+  serial_groups:
+    - live-build
+  plan:
+  - get: focal
+    tags: [internal]
+  - task: build
+    tags: [internal]
+    image: focal
+    privileged: true
+    config:
+      outputs:
+      - name: output
+      params:
+        DEBIAN_FRONTEND: noninteractive
+        TERM: xterm
+      platform: linux
+      run:
+        path: bash
+        args:
+        - -exc
+        - |
+          cd /usr/share/livecd-rootfs/live-build
+          PROJECT=ubuntu SUITE=focal ARCH=amd64 lb build
+          # WIP
+  - put: webdav
+    tags: [internal]
+    params:
+      from: output

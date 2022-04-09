@@ -1,0 +1,51 @@
+name: Docker
+
+on:
+  repository_dispatch:
+    types: rebuild-image
+
+  schedule:
+    - cron: '0 0 * * SUN'
+      
+  push:
+    branches:
+      - main
+
+env:
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  push:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'repository_dispatch'
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Build image
+        run: |
+          export DOCKER_BUILDKIT=1
+          docker build . --file Dockerfile.jammy --tag $IMAGE_NAME:jammy
+          docker build . --file Dockerfile.focal --tag $IMAGE_NAME:focal
+
+      - name: Log into GitHub Container Registry
+        run: echo "${{ secrets.CR_PAT }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Push image to GitHub Container Registry
+        run: |
+          IMAGE_ID=ghcr.io/${{ github.repository }}
+          docker tag $IMAGE_NAME:jammy $IMAGE_ID:jammy
+          docker tag $IMAGE_NAME:focal $IMAGE_ID:focal
+          docker push $IMAGE_ID:jammy
+          docker push $IMAGE_ID:focal
+
+      - name: Log into Docker Hub
+        run: echo "${{ secrets.DOCKER_HUB }}" | docker login -u ${{ github.actor }} --password-stdin
+
+      - name: Push image to Docker Hub
+        run: |
+          IMAGE_ID=${{ github.repository }}
+          docker tag $IMAGE_NAME:jammy $IMAGE_ID:jammy
+          docker tag $IMAGE_NAME:focal $IMAGE_ID:focal
+          docker push $IMAGE_ID:jammy
+          docker push $IMAGE_ID:focal

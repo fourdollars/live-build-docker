@@ -1,0 +1,8 @@
+# syntax=docker/dockerfile:1.3-labs
+FROM ubuntu:focal
+ENV DEBIAN_FRONTEND=noninteractive
+RUN <<EOF
+apt-get update -q -q
+apt-get full-upgrade --yes
+apt-get install --yes --no-install-recommends debian-cd live-build apt-utils reprepro livecd-rootfs distro-info file p7zip-full vim jq
+EOF
